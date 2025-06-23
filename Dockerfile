@@ -30,4 +30,4 @@ ENV PYTHONUNBUFFERED=1
 # ENV OPENAI_API_BASE_URL="" # Optional: e.g. "http://localhost:1234/v1" for local LLMs
 
 # Run bot.py when the container launches
-CMD ["python", "bot.py"]
+CMD ["python", "main.py"]
