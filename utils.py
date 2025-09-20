@@ -1,167 +1,118 @@
+# utils.py
+
 import discord
 from typing import Dict, List
 from datetime import datetime
 import pytz
 
-def parse_command_args(content: str) -> Dict:
-    """
-    解析命令参数
-    示例: 吃啥 菜系=川菜,粤菜 价格=$$ 评分=4.5 附近=1000
-    """
-    parts = content.split()
-    if len(parts) <= 1:
-        return {}
-    
-    filters = {}
-    for part in parts[1:]:
-        if '=' in part:
-            key, value = part.split('=', 1)
-            key = key.strip().lower()
-            
-            # 映射常见的中文参数到英文
-            mapping = {
-                '菜系': 'cuisine_type',
-                '类型': 'cuisine_type',
-                '价格': 'price_range',
-                '评分': 'min_rating',
-                '标签': 'tags',
-                '关键词': 'keyword',
-                '附近': 'max_distance',
-                '距离': 'max_distance'
-            }
-            
-            if key in mapping:
-                filters[mapping[key]] = value
-            else:
-                filters[key] = value
-    
-    return filters
-
 def create_restaurant_embed(restaurant: Dict) -> discord.Embed:
-    """创建餐厅信息的Discord嵌入消息"""
-    # 设置嵌入颜色（根据价格范围）
+    """为单个餐厅数据创建 Discord 嵌入式消息"""
     price_colors = {
-        '$': 0x2ecc71,      # 绿色 - 便宜
-        '$$': 0x3498db,     # 蓝色 - 中等
-        '$$$': 0xf39c12,    # 橙色 - 较贵
-        '$$$$': 0xe74c3c    # 红色 - 昂贵
+        '$': 0x2ecc71,
+        '$$': 0x3498db,
+        '$$$': 0xf39c12,
+        '$$$$': 0xe74c3c
     }
     color = price_colors.get(restaurant.get('price_range', '$$'), 0x95a5a6)
     
     embed = discord.Embed(
-        title=restaurant['name'],
+        title=restaurant.get('name', '未知餐厅'),
         description=f"📍 {restaurant.get('address', '未知地址')}",
         color=color
     )
     
-    # 添加菜系信息
+    if restaurant.get('google_maps_url'):
+        embed.url = restaurant['google_maps_url']
+
     if restaurant.get('cuisine_type'):
-        cuisines = ', '.join(restaurant['cuisine_type'])
-        embed.add_field(name="🍽️ 菜系", value=cuisines, inline=True)
+        embed.add_field(name="🍽️ 菜系", value=', '.join(restaurant['cuisine_type']), inline=True)
     
-    # 添加价格范围
     if restaurant.get('price_range'):
         embed.add_field(name="💰 价格", value=restaurant['price_range'], inline=True)
     
-    # 添加评分
     if restaurant.get('rating'):
-        rating_stars = '⭐' * int(restaurant['rating'])
-        embed.add_field(name="⭐ 评分", value=f"{restaurant['rating']}/5.0 {rating_stars}", inline=True)
-    
-    # 添加营业时间（当天）
-    if restaurant.get('opening_hours'):
-        tz = pytz.timezone('Asia/Shanghai')
-        now = datetime.now(tz)
-        weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-        today = weekdays[now.weekday()]
+        rating_text = f"{restaurant['rating']}/5.0"
+        if restaurant.get('user_ratings_total'):
+            rating_text += f" ({restaurant['user_ratings_total']}条评价)"
+        embed.add_field(name="⭐ 评分", value=rating_text, inline=True)
         
-        if today in restaurant['opening_hours']:
-            hours = restaurant['opening_hours'][today]
-            embed.add_field(name="⏰ 今日营业时间", value=hours, inline=True)
-    
-    # 添加标签
     if restaurant.get('tags'):
-        tags = ', '.join(restaurant['tags'])
-        embed.add_field(name="🏷️ 标签", value=tags, inline=False)
+        embed.add_field(name="🏷️ 标签", value=', '.join(restaurant['tags']), inline=False)
     
-    # 添加Google Maps链接
-    if restaurant.get('google_maps_url'):
-        embed.add_field(
-            name="🗺️ 地图", 
-            value=f"[查看地图]({restaurant['google_maps_url']})", 
-            inline=False
-        )
-    
-    # 设置图片
     if restaurant.get('image_url'):
         embed.set_image(url=restaurant['image_url'])
-    
-    # 设置页脚
-    embed.set_footer(text="🍴 祝您用餐愉快！")
+        
+    embed.set_footer(text=f"Google Place ID: {restaurant.get('google_place_id', 'N/A')}")
     
     return embed
 
 def create_help_embed() -> discord.Embed:
     """创建帮助信息的嵌入消息"""
     embed = discord.Embed(
-        title="🍽️ 餐厅推荐机器人使用指南",
-        description="让我来帮你决定今天吃什么！",
-        color=0x3498db
+        title="🤖 智能美食推荐官 - 使用指南",
+        description="我能听懂你的话，帮你找到想吃的！所有命令都使用斜杠 `/` 开始。",
+        color=0x5865F2 # Discord Blue
     )
     
     embed.add_field(
-        name="📝 基本用法",
-        value="`吃啥` - 随机推荐3家正在营业的餐厅",
-        inline=False
-    )
-    
-    embed.add_field(
-        name="🔍 高级筛选",
+        name=" основная команда: `/find` (或 `/吃啥`)",
         value=(
-            "`吃啥 菜系=川菜`\n"
-            "`吃啥 价格=$$`\n"
-            "`吃啥 评分=4.5`\n"
-            "`吃啥 标签=适合聚餐`\n"
-            "`吃啥 关键词=火锅`"
+            "用自然语言告诉我你想吃什么，我会尽力理解并为你推荐。\n"
+            "**你可以这样说:**\n"
+            "• `/find 明天中午想吃点便宜的川菜`\n"
+            "• `/find 附近有没有评分高的日料`\n"
+            "• `/find 找个适合情侣约会的西餐厅`\n"
+            "• `/find 来点烧烤当夜宵`"
         ),
         inline=False
     )
     
     embed.add_field(
-        name="🎯 组合筛选",
-        value="`吃啥 菜系=川菜,粤菜 价格=$-$$ 评分=4.0`",
-        inline=False
-    )
-    
-    embed.add_field(
-        name="💰 价格说明",
+        name="🛠️ 管理员命令",
         value=(
-            "$ = 人均30元以下\n"
-            "$$ = 人均30-60元\n"
-            "$$$ = 人均60-100元\n"
-            "$$$$ = 人均100元以上"
+            "以下命令仅限服务器管理员使用：\n"
+            "• `/crawl [纬度] [经度] [半径]` - 从指定地点爬取餐厅数据。\n"
+            "  *示例: `/crawl 23.045 113.398 2000`*\n"
+            "• `/add [google_place_id]` - 手动添加或更新一个餐厅。\n"
+            "• `/delete [google_place_id]` - 从数据库中删除一个餐厅。"
         ),
         inline=False
     )
     
-    embed.set_footer(text="提示: 默认只显示正在营业的餐厅")
+    embed.set_footer(text="我由 LLM 驱动，正在不断学习中！")
+    return embed
+
+def create_crawler_summary_embed(summary: Dict, location: Dict) -> discord.Embed:
+    """为爬虫结果创建总结嵌入消息"""
+    embed = discord.Embed(
+        title="🗺️ Google Maps 数据爬取完成",
+        description=f"中心点: `lat: {location['lat']}, lon: {location['lon']}`\n半径: `{location['radius']}米`",
+        color=0x2ecc71
+    )
+    # 分行展示，更清晰
+    embed.add_field(name="🔍 发现地点总数", value=str(summary.get('total_found', 0)), inline=True)
+    embed.add_field(name="🗃️ 已存在并跳过", value=str(summary.get('already_exists', 0)), inline=True)
+    embed.add_field(name=" xử lý mới", value=str(summary.get('to_process', 0)), inline=True)
+    
+    embed.add_field(name="✅ 成功添加/更新", value=str(summary.get('restaurants_added_or_updated', 0)), inline=True)
+    embed.add_field(name="⏭️ 跳过的非餐厅", value=str(summary.get('non_restaurants_skipped', 0)), inline=True)
+    embed.add_field(name="❌ 发生错误数", value=str(summary.get('errors', 0)), inline=True)
     
     return embed
 
-def create_error_embed(message: str) -> discord.Embed:
+
+def create_error_embed(message: str, title: str = "❌ 糟糕，出错了") -> discord.Embed:
     """创建错误信息的嵌入消息"""
-    embed = discord.Embed(
-        title="❌ 出错了",
-        description=message,
-        color=0xe74c3c
-    )
-    return embed
+    return discord.Embed(title=title, description=message, color=0xe74c3c)
 
 def create_no_results_embed() -> discord.Embed:
-    """创建无结果的嵌入消息"""
-    embed = discord.Embed(
-        title="😔 没有找到餐厅",
-        description="根据您的筛选条件，没有找到符合要求或正在营业的餐厅。\n请尝试放宽筛选条件。",
-        color=0xf39c12
+    """创建未找到结果的嵌入消息"""
+    return discord.Embed(
+        title="🤔 换个条件试试？",
+        description="根据你的要求，我没有找到正在营业的餐厅。\n可以尝试放宽筛选条件，或者换个时间再问我哦。",
+        color=0xf1c40f
     )
-    return embed
+
+def create_success_embed(message: str, title: str = "✅ 操作成功") -> discord.Embed:
+    """创建成功操作的嵌入消息"""
+    return discord.Embed(title=title, description=message, color=0x2ecc71)
