@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:4.4.18  # 使用最新的 mongo 镜像
+    container_name: bot-mongo-db # 给容器起一个好记的名字
+    restart: always      # 容器退出时总是自动重启
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: dummyuser   # 设置你的数据库管理员用户名
+      MONGO_INITDB_ROOT_PASSWORD: dummypass # 设置你的数据库管理员密码
+    ports:
+      - "27017:27017"    # 将容器的27017端口映射到你电脑的27017端口
+    volumes:
+      - <path2db>:/data/db # 将数据库数据持久化存储
+
+# volumes:
+#   mongo-data: # 定义一个 volume，防止容器删除后数据丢失
