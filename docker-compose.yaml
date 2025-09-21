@@ -3,15 +3,36 @@ version: '3.8'
 services:
   mongo:
     image: mongo:4.4.18  # 使用最新的 mongo 镜像
-    container_name: bot-mongo-db # 给容器起一个好记的名字
+    # container_name: bot-mongo-db # 给容器起一个好记的名字
     restart: always      # 容器退出时总是自动重启
     environment:
-      MONGO_INITDB_ROOT_USERNAME: dummyuser   # 设置你的数据库管理员用户名
-      MONGO_INITDB_ROOT_PASSWORD: dummypass # 设置你的数据库管理员密码
-    ports:
-      - "27017:27017"    # 将容器的27017端口映射到你电脑的27017端口
+      - MONGO_INITDB_ROOT_USERNAME=root   # 设置你的数据库管理员用户名
+      - MONGO_INITDB_ROOT_PASSWORD=dummypass # 设置你的数据库管理员密码
+    # ports: # Opitional
+    #   - "27017:27017"    # 将容器的27017端口映射到你电脑的27017端口
     volumes:
       - <path2db>:/data/db # 将数据库数据持久化存储
+
+  bot:
+    image: ghcr.io/5418ly/dc-bot-what-to-eat:latest
+    container_name: dc-bot-what-to-eat
+    restart: always      # 容器退出时总是自动重启
+    environment:
+      - DISCORD_TOKEN="YourDiscordToken"
+
+      - MONGODB_URI="mongodb://root:dummypass@mongo:27017/"
+      - MONGO_DB_NAME="restaurant_db"
+      - MONGO_COLLECTION_NAME="restaurants"
+
+      # Google Maps API配置
+      - GOOGLE_MAPS_API_KEY="YourApiKey"
+
+      # OpenAI API配置（可选，用于智能推断菜系和标签）
+      - OPENAI_API_KEY="YourApiKey"
+      # OpenAI Base URL（可选，支持自定义endpoint，例如使用Azure OpenAI或其他兼容服务）
+      - OPENAI_BASE_URL="YourBaseUrl"
+      # OpenAI模型名称（可选，默认为gpt-3.5-turbo）
+      - LLM_MODEL_NAME="YourModelID"
 
 # volumes:
 #   mongo-data: # 定义一个 volume，防止容器删除后数据丢失
