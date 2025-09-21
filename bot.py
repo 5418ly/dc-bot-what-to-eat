@@ -20,8 +20,8 @@ from utils import (
     create_crawler_summary_embed
 )
 
-# --- 初始化 ---
-load_dotenv()
+# # --- 初始化 ---
+# load_dotenv()
 
 # 设置 Bot 的权限 (Intents)
 intents = discord.Intents.default()
