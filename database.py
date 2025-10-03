@@ -157,3 +157,55 @@ class RestaurantDB:
         if self.client:
             self.client.close()
             print("MongoDB connection closed.")
+
+    async def find_restaurants_near_location(
+        self, 
+        latitude: float, 
+        longitude: float,
+        radius_meters: int = 2000,
+        filters: Optional[Dict] = None, 
+        query_time: Optional[datetime] = None, 
+        count: int = 3
+    ) -> List[Dict]:
+        """
+        查找指定位置附近的餐厅
+        
+        Args:
+            latitude: 纬度
+            longitude: 经度
+            radius_meters: 搜索半径（米）
+            filters: 其他过滤条件
+            query_time: 查询时间
+            count: 返回数量
+        """
+        query = self._build_query_from_llm_filters(filters or {})
+        
+        # 添加地理位置查询
+        query['location'] = {
+            '$near': {
+                '$geometry': {
+                    'type': 'Point',
+                    'coordinates': [longitude, latitude]
+                },
+                '$maxDistance': radius_meters
+            }
+        }
+        
+        cursor = self.collection.find(query)
+        potential_restaurants = [doc async for doc in cursor]
+        
+        target_time = query_time if query_time is not None else datetime.now()
+        open_restaurants = [
+            r for r in potential_restaurants 
+            if self.is_open_at_time(r.get('opening_hours', {}), target_time)
+        ]
+        
+        if len(open_restaurants) > count:
+            selected_restaurants = random.sample(open_restaurants, count)
+        else:
+            selected_restaurants = open_restaurants
+        
+        for r in selected_restaurants:
+            r['_id'] = str(r['_id'])
+        
+        return selected_restaurants

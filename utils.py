@@ -1,5 +1,4 @@
 # utils.py
-
 import discord
 from typing import Dict, List
 from datetime import datetime
@@ -23,7 +22,6 @@ def create_restaurant_embed(restaurant: Dict) -> discord.Embed:
     
     if restaurant.get('google_maps_url'):
         embed.url = restaurant['google_maps_url']
-
     if restaurant.get('cuisine_type'):
         embed.add_field(name="🍽️ 菜系", value=', '.join(restaurant['cuisine_type']), inline=True)
     
@@ -46,23 +44,32 @@ def create_restaurant_embed(restaurant: Dict) -> discord.Embed:
     
     return embed
 
+
 def create_help_embed() -> discord.Embed:
     """创建帮助信息的嵌入消息"""
     embed = discord.Embed(
         title="🤖 智能美食推荐官 - 使用指南",
         description="我能听懂你的话，帮你找到想吃的！所有命令都使用斜杠 `/` 开始。",
-        color=0x5865F2 # Discord Blue
+        color=0x5865F2
     )
     
+    # ... (find, nearby 等命令的说明保持不变) ...
     embed.add_field(
-        name=" основная команда: `/find` (或 `/吃啥`)",
+        name="🍴 主要命令",
         value=(
-            "用自然语言告诉我你想吃什么，我会尽力理解并为你推荐。\n"
-            "**你可以这样说:**\n"
-            "• `/find 明天中午想吃点便宜的川菜`\n"
-            "• `/find 附近有没有评分高的日料`\n"
-            "• `/find 找个适合情侣约会的西餐厅`\n"
-            "• `/find 来点烧烤当夜宵`"
+            "**`/find [query]`** - 用自然语言找餐厅。\n"
+            "*示例: `/find 明天想吃便宜的川菜`*\n\n"
+            "**`/nearby [location] [query]`** - 查找某地附近的餐厅。\n"
+            "*示例: `/nearby 学校 找个评分高的`*\n\n"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="📍 个人位置",
+        value=(
+            "**`/location set [address]`** - 设置你的默认位置。\n"
+            "**`/location show`** - 查看你的默认位置。\n"
+            "**`/location clear`** - 清除你的默认位置。"
         ),
         inline=False
     )
@@ -70,17 +77,21 @@ def create_help_embed() -> discord.Embed:
     embed.add_field(
         name="🛠️ 管理员命令",
         value=(
-            "以下命令仅限服务器管理员使用：\n"
-            "• `/crawl [纬度] [经度] [半径]` - 从指定地点爬取餐厅数据。\n"
-            "  *示例: `/crawl 23.045 113.398 2000`*\n"
-            "• `/add [google_place_id]` - 手动添加或更新一个餐厅。\n"
-            "• `/delete [google_place_id]` - 从数据库中删除一个餐厅。"
+            "**`/admin crawl`** - 爬取餐厅数据 (支持 `force_update` 等高级选项)。\n"
+            "**`/admin add [id]`** - 添加或强制更新单个餐厅。\n"
+            "**`/admin delete [id]`** - 删除餐厅 (别名: `/admin remove`)。\n\n"
+            "**`/admin alias add`** - 添加位置别名（黑话）。\n"
+            "  • **通过地址**: `/admin alias add alias:学校 address:广州大学城`\n"
+            "  • **通过坐标**: `/admin alias add alias:家 latitude:23.123 longitude:113.456 address:我的家`\n\n" # <--- 更新示例
+            "**`/admin alias list`** - 列出所有位置别名。\n"
+            "**`/admin alias delete [alias]`** - 删除一个位置别名。"
         ),
         inline=False
     )
     
     embed.set_footer(text="我由 LLM 驱动，正在不断学习中！")
     return embed
+
 
 def create_crawler_summary_embed(summary: Dict, location: Dict) -> discord.Embed:
     """为爬虫结果创建总结嵌入消息"""
@@ -89,17 +100,18 @@ def create_crawler_summary_embed(summary: Dict, location: Dict) -> discord.Embed
         description=f"中心点: `lat: {location['lat']}, lon: {location['lon']}`\n半径: `{location['radius']}米`",
         color=0x2ecc71
     )
-    # 分行展示，更清晰
+    
+    embed.add_field(name="📄 爬取页数", value=str(summary.get('pages_crawled', 0)), inline=True)
     embed.add_field(name="🔍 发现地点总数", value=str(summary.get('total_found', 0)), inline=True)
     embed.add_field(name="🗃️ 已存在并跳过", value=str(summary.get('already_exists', 0)), inline=True)
-    embed.add_field(name=" xử lý mới", value=str(summary.get('to_process', 0)), inline=True)
     
+    embed.add_field(name="🆕 需要处理", value=str(summary.get('to_process', 0)), inline=True)
     embed.add_field(name="✅ 成功添加/更新", value=str(summary.get('restaurants_added_or_updated', 0)), inline=True)
     embed.add_field(name="⏭️ 跳过的非餐厅", value=str(summary.get('non_restaurants_skipped', 0)), inline=True)
+    
     embed.add_field(name="❌ 发生错误数", value=str(summary.get('errors', 0)), inline=True)
     
     return embed
-
 
 def create_error_embed(message: str, title: str = "❌ 糟糕，出错了") -> discord.Embed:
     """创建错误信息的嵌入消息"""
@@ -116,3 +128,25 @@ def create_no_results_embed() -> discord.Embed:
 def create_success_embed(message: str, title: str = "✅ 操作成功") -> discord.Embed:
     """创建成功操作的嵌入消息"""
     return discord.Embed(title=title, description=message, color=0x2ecc71)
+
+def create_location_info_embed(location: Dict) -> discord.Embed:
+    """创建位置信息的嵌入消息"""
+    coords = location['coordinates']
+    embed = discord.Embed(
+        title="📍 你的默认位置",
+        color=discord.Color.blue()
+    )
+    
+    if location.get('address'):
+        embed.add_field(name="地址", value=location['address'], inline=False)
+    
+    embed.add_field(
+        name="坐标", 
+        value=f"`{coords['latitude']:.6f}, {coords['longitude']:.6f}`",
+        inline=True
+    )
+    
+    if location.get('radius'):
+        embed.add_field(name="默认搜索半径", value=f"{location['radius']}米", inline=True)
+    
+    return embed
